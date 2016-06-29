@@ -10,7 +10,6 @@ conf/flume-site.xml
 bin/.settings
 .eclipse
 pmd_report.html
-*/bin
 target
 patchprocess
 derby.log
