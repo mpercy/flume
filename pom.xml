@@ -641,6 +641,18 @@ limitations under the License.
         <artifactId>apache-rat-plugin</artifactId>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- Run checkstyle as part of the "verify" phase. See
            https://maven.apache.org/plugins/maven-checkstyle-plugin/examples/multi-module-config.html
            for how to configure plugin for a multi-module project. -->
@@ -754,6 +766,12 @@ limitations under the License.
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.0.2</version>
         </plugin>
 
         <plugin>
