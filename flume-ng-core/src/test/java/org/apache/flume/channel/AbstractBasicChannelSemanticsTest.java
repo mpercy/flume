@@ -36,10 +36,15 @@ import org.junit.Assert;
 import org.junit.Before;
 
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractBasicChannelSemanticsTest {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AbstractBasicChannelSemanticsTest.class);
 
   protected static List<Event> events;
+
   static {
     Event[] array = new Event[7];
     for (int i = 0; i < array.length; ++i) {
@@ -61,7 +66,7 @@ public abstract class AbstractBasicChannelSemanticsTest {
       THROW_RUNTIME,
       THROW_CHANNEL,
       SLEEP
-    };
+    }
 
     private Mode mode = Mode.NORMAL;
     private boolean lastTransactionCommitted = false;
@@ -106,6 +111,8 @@ public abstract class AbstractBasicChannelSemanticsTest {
           case SLEEP:
             Thread.sleep(300000);
             break;
+          default:
+            throw new IllegalArgumentException("Unsupported mode " + mode);
         }
       }
 
@@ -158,11 +165,11 @@ public abstract class AbstractBasicChannelSemanticsTest {
 
   protected static class TestError extends Error {
     static final long serialVersionUID = -1;
-  };
+  }
 
   protected static class TestRuntimeException extends RuntimeException {
     static final long serialVersionUID = -1;
-  };
+  }
 
   protected void testException(Class<? extends Throwable> exceptionClass,
       Runnable test) {
@@ -178,6 +185,17 @@ public abstract class AbstractBasicChannelSemanticsTest {
         throw new AssertionError(e);
       }
     }
+  }
+
+  protected void testException(TestChannel.Mode mode,
+                               final Class<? extends Throwable> exceptionClass,
+                               final Runnable test) {
+    testMode(mode, new Runnable() {
+      @Override
+      public void run() {
+        testException(exceptionClass, test);
+      }
+    });
   }
 
   protected void testIllegalArgument(Runnable test) {
@@ -205,16 +223,6 @@ public abstract class AbstractBasicChannelSemanticsTest {
     } finally {
       channel.setMode(oldMode);
     }
-  }
-
-  protected void testException(TestChannel.Mode mode,
-      final Class<? extends Throwable> exceptionClass, final Runnable test) {
-    testMode(mode, new Runnable() {
-        @Override
-        public void run() {
-          testException(exceptionClass, test);
-        }
-      });
   }
 
   protected void testError(Runnable test) {
@@ -252,6 +260,7 @@ public abstract class AbstractBasicChannelSemanticsTest {
           try {
             Thread.sleep(500);
           } catch (InterruptedException e) {
+            LOGGER.info("Interrupted while sleeping", e);
           }
           mainThread.interrupt();
         }
