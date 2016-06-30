@@ -19,10 +19,6 @@
 package org.apache.flume.serialization;
 
 import com.google.common.base.Charsets;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
@@ -33,6 +29,11 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Map;
 
 /**
  * This class exists to give an idea of how to use the AvroEventWriter
@@ -231,20 +232,45 @@ public class SyslogAvroEventSerializer
     private String hostname = "";
     private String message = "";
 
-    public void setFacility(int f) { facility = f; }
-    public int getFacility() { return facility; }
+    public int getFacility() {
+      return facility;
+    }
 
-    public void setSeverity(int s) { severity = s; }
-    public int getSeverity() { return severity; }
+    public void setFacility(int f) {
+      facility = f;
+    }
 
-    public void setTimestamp(long t) { timestamp = t; }
-    public long getTimestamp() { return timestamp; }
+    public int getSeverity() {
+      return severity;
+    }
 
-    public void setHostname(String h) { hostname = h; }
-    public String getHostname() { return hostname; }
+    public void setSeverity(int s) {
+      severity = s;
+    }
 
-    public void setMessage(String m) { message = m; }
-    public String getMessage() { return message; }
+    public long getTimestamp() {
+      return timestamp;
+    }
+
+    public void setTimestamp(long t) {
+      timestamp = t;
+    }
+
+    public String getHostname() {
+      return hostname;
+    }
+
+    public void setHostname(String h) {
+      hostname = h;
+    }
+
+    public String getMessage() {
+      return message;
+    }
+
+    public void setMessage(String m) {
+      message = m;
+    }
 
     @Override
     public String toString() {

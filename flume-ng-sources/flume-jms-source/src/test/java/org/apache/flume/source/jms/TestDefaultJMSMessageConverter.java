@@ -17,10 +17,20 @@
  */
 package org.apache.flume.source.jms;
 
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Maps;
+import org.apache.flume.Context;
+import org.apache.flume.Event;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import javax.jms.BytesMessage;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.ObjectMessage;
+import javax.jms.TextMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
@@ -29,21 +39,12 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.Map;
 
-import javax.jms.BytesMessage;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.ObjectMessage;
-import javax.jms.TextMessage;
-
-import org.apache.flume.Context;
-import org.apache.flume.Event;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import com.google.common.base.Charsets;
-import com.google.common.collect.Maps;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestDefaultJMSMessageConverter {
 
@@ -73,7 +74,7 @@ public class TestDefaultJMSMessageConverter {
       @Override
       public Integer answer(InvocationOnMock invocation) throws Throwable {
         byte[] buffer = (byte[])invocation.getArguments()[0];
-        if(buffer != null) {
+        if (buffer != null) {
           assertEquals(buffer.length, BYTES.length);
           System.arraycopy(BYTES, 0, buffer, 0, BYTES.length);
         }

@@ -18,14 +18,9 @@
  */
 package org.apache.flume.channel.file;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -35,10 +30,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
+import java.io.File;
+import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(value = Parameterized.class)
 public class TestFlumeEventQueue {
@@ -49,75 +48,49 @@ public class TestFlumeEventQueue {
   EventQueueBackingStoreSupplier backingStoreSupplier;
   EventQueueBackingStore backingStore;
 
-  private abstract static class EventQueueBackingStoreSupplier {
-    File baseDir;
-    File checkpoint;
-    File inflightTakes;
-    File inflightPuts;
-    File queueSetDir;
-    EventQueueBackingStoreSupplier() {
-      baseDir = Files.createTempDir();
-      checkpoint = new File(baseDir, "checkpoint");
-      inflightTakes = new File(baseDir, "inflightputs");
-      inflightPuts =  new File(baseDir, "inflighttakes");
-      queueSetDir =  new File(baseDir, "queueset");
-    }
-    File getCheckpoint() {
-      return checkpoint;
-    }
-    File getInflightPuts() {
-      return inflightPuts;
-    }
-    File getInflightTakes() {
-      return inflightTakes;
-    }
-    File getQueueSetDir() {
-      return queueSetDir;
-    }
-    void delete() {
-      FileUtils.deleteQuietly(baseDir);
-    }
-    abstract EventQueueBackingStore get() throws Exception ;
+  public TestFlumeEventQueue(EventQueueBackingStoreSupplier backingStoreSupplier) {
+    this.backingStoreSupplier = backingStoreSupplier;
   }
 
   @Parameters
   public static Collection<Object[]> data() throws Exception {
-    Object[][] data = new Object[][] { {
-      new EventQueueBackingStoreSupplier() {
-        @Override
-        public EventQueueBackingStore get() throws Exception {
-          Assert.assertTrue(baseDir.isDirectory() || baseDir.mkdirs());
-          return new EventQueueBackingStoreFileV2(getCheckpoint(), 1000,
-              "test");
+    Object[][] data = new Object[][] {
+      {
+        new EventQueueBackingStoreSupplier() {
+          @Override
+          public EventQueueBackingStore get() throws Exception {
+            Assert.assertTrue(baseDir.isDirectory() || baseDir.mkdirs());
+            return new EventQueueBackingStoreFileV2(getCheckpoint(), 1000, "test");
+          }
+        }
+      },
+      {
+        new EventQueueBackingStoreSupplier() {
+          @Override
+          public EventQueueBackingStore get() throws Exception {
+            Assert.assertTrue(baseDir.isDirectory() || baseDir.mkdirs());
+            return new EventQueueBackingStoreFileV3(getCheckpoint(), 1000,
+                "test");
+          }
         }
       }
-    }, {
-      new EventQueueBackingStoreSupplier() {
-        @Override
-        public EventQueueBackingStore get() throws Exception {
-          Assert.assertTrue(baseDir.isDirectory() || baseDir.mkdirs());
-          return new EventQueueBackingStoreFileV3(getCheckpoint(), 1000,
-              "test");
-        }
-      }
-    } };
+    };
     return Arrays.asList(data);
   }
 
-  public TestFlumeEventQueue(EventQueueBackingStoreSupplier backingStoreSupplier) {
-    this.backingStoreSupplier = backingStoreSupplier;
-  }
   @Before
   public void setup() throws Exception {
     backingStore = backingStoreSupplier.get();
   }
+
   @After
   public void cleanup() throws IOException {
-    if(backingStore != null) {
+    if (backingStore != null) {
       backingStore.close();
     }
     backingStoreSupplier.delete();
   }
+
   @Test
   public void testCapacity() throws Exception {
     backingStore.close();
@@ -131,7 +104,8 @@ public class TestFlumeEventQueue {
     Assert.assertTrue(queue.addTail(pointer1));
     Assert.assertFalse(queue.addTail(pointer2));
   }
-  @Test(expected=IllegalArgumentException.class)
+
+  @Test(expected = IllegalArgumentException.class)
   public void testInvalidCapacityZero() throws Exception {
     backingStore.close();
     File checkpoint = backingStoreSupplier.getCheckpoint();
@@ -142,7 +116,8 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getInflightPuts(),
         backingStoreSupplier.getQueueSetDir());
   }
-  @Test(expected=IllegalArgumentException.class)
+
+  @Test(expected = IllegalArgumentException.class)
   public void testInvalidCapacityNegative() throws Exception {
     backingStore.close();
     File checkpoint = backingStoreSupplier.getCheckpoint();
@@ -153,6 +128,7 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getInflightPuts(),
         backingStoreSupplier.getQueueSetDir());
   }
+
   @Test
   public void testQueueIsEmptyAfterCreation() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -161,6 +137,7 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getQueueSetDir());
     Assert.assertNull(queue.removeHead(0L));
   }
+
   @Test
   public void addTail1() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -171,6 +148,7 @@ public class TestFlumeEventQueue {
     Assert.assertEquals(pointer1, queue.removeHead(0));
     Assert.assertEquals(Sets.newHashSet(), queue.getFileIDs());
   }
+
   @Test
   public void addTail2() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -183,6 +161,7 @@ public class TestFlumeEventQueue {
     Assert.assertEquals(pointer1, queue.removeHead(0));
     Assert.assertEquals(Sets.newHashSet(2), queue.getFileIDs());
   }
+
   @Test
   public void addTailLarge() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -203,6 +182,7 @@ public class TestFlumeEventQueue {
     }
     Assert.assertEquals(Sets.newHashSet(), queue.getFileIDs());
   }
+
   @Test
   public void addHead1() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -214,6 +194,7 @@ public class TestFlumeEventQueue {
     Assert.assertEquals(pointer1, queue.removeHead(0));
     Assert.assertEquals(Sets.newHashSet(), queue.getFileIDs());
   }
+
   @Test
   public void addHead2() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -227,6 +208,7 @@ public class TestFlumeEventQueue {
     Assert.assertEquals(pointer2, queue.removeHead(0));
     Assert.assertEquals(Sets.newHashSet(1), queue.getFileIDs());
   }
+
   @Test
   public void addHeadLarge() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -248,6 +230,7 @@ public class TestFlumeEventQueue {
     }
     Assert.assertEquals(Sets.newHashSet(), queue.getFileIDs());
   }
+
   @Test
   public void addTailRemove1() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -286,6 +269,7 @@ public class TestFlumeEventQueue {
     Assert.assertTrue(queue.remove(pointer1));
     Assert.assertNull(queue.removeHead(0));
   }
+
   @Test
   public void addHeadRemove2() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -298,6 +282,7 @@ public class TestFlumeEventQueue {
     queue.replayComplete();
     Assert.assertEquals(pointer2, queue.removeHead(0));
   }
+
   @Test
   public void testUnknownPointerDoesNotCauseSearch() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -312,7 +297,8 @@ public class TestFlumeEventQueue {
     queue.replayComplete();
     Assert.assertEquals(2, queue.getSearchCount());
   }
-  @Test(expected=IllegalStateException.class)
+
+  @Test(expected = IllegalStateException.class)
   public void testRemoveAfterReplayComplete() throws Exception {
     queue = new FlumeEventQueue(backingStore,
         backingStoreSupplier.getInflightTakes(),
@@ -321,6 +307,7 @@ public class TestFlumeEventQueue {
     queue.replayComplete();
     queue.remove(pointer1);
   }
+
   @Test
   public void testWrappingCorrectly() throws Exception {
     queue = new FlumeEventQueue(backingStore,
@@ -329,23 +316,24 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getQueueSetDir());
     int size = Integer.MAX_VALUE;
     for (int i = 1; i <= size; i++) {
-      if(!queue.addHead(new FlumeEventPointer(i, i))) {
+      if (!queue.addHead(new FlumeEventPointer(i, i))) {
         break;
       }
     }
-    for (int i = queue.getSize()/2; i > 0; i--) {
+    for (int i = queue.getSize() / 2; i > 0; i--) {
       Assert.assertNotNull(queue.removeHead(0));
     }
     // addHead below would throw an IndexOOBounds with
     // bad version of FlumeEventQueue.convert
     for (int i = 1; i <= size; i++) {
-      if(!queue.addHead(new FlumeEventPointer(i, i))) {
+      if (!queue.addHead(new FlumeEventPointer(i, i))) {
         break;
       }
     }
   }
+
   @Test
-  public void testInflightPuts() throws Exception{
+  public void testInflightPuts() throws Exception {
     queue = new FlumeEventQueue(backingStore,
         backingStoreSupplier.getInflightTakes(),
         backingStoreSupplier.getInflightPuts(),
@@ -363,11 +351,11 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getQueueSetDir());
     SetMultimap<Long, Long> deserializedMap = queue.deserializeInflightPuts();
     Assert.assertTrue(deserializedMap.get(
-            txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
+        txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
     Assert.assertTrue(deserializedMap.get(
-            txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
+        txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
     Assert.assertTrue(deserializedMap.get(
-            txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
+        txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
   }
 
   @Test
@@ -392,11 +380,11 @@ public class TestFlumeEventQueue {
         backingStoreSupplier.getQueueSetDir());
     SetMultimap<Long, Long> deserializedMap = queue.deserializeInflightTakes();
     Assert.assertTrue(deserializedMap.get(
-            txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
+        txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
     Assert.assertTrue(deserializedMap.get(
-            txnID2).contains(new FlumeEventPointer(2, 1).toLong()));
+        txnID2).contains(new FlumeEventPointer(2, 1).toLong()));
     Assert.assertTrue(deserializedMap.get(
-            txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
+        txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
 
   }
 
@@ -405,9 +393,9 @@ public class TestFlumeEventQueue {
     RandomAccessFile inflight = null;
     try {
       queue = new FlumeEventQueue(backingStore,
-              backingStoreSupplier.getInflightTakes(),
-              backingStoreSupplier.getInflightPuts(),
-              backingStoreSupplier.getQueueSetDir());
+          backingStoreSupplier.getInflightTakes(),
+          backingStoreSupplier.getInflightPuts(),
+          backingStoreSupplier.getQueueSetDir());
       long txnID1 = new Random().nextInt(Integer.MAX_VALUE - 1);
       long txnID2 = txnID1 + 1;
       queue.addWithoutCommit(new FlumeEventPointer(1, 1), txnID1);
@@ -416,20 +404,20 @@ public class TestFlumeEventQueue {
       queue.checkpoint(true);
       TimeUnit.SECONDS.sleep(3L);
       inflight = new RandomAccessFile(
-              backingStoreSupplier.getInflightPuts(), "rw");
+          backingStoreSupplier.getInflightPuts(), "rw");
       inflight.seek(0);
       inflight.writeInt(new Random().nextInt());
       queue = new FlumeEventQueue(backingStore,
-              backingStoreSupplier.getInflightTakes(),
-              backingStoreSupplier.getInflightPuts(),
-              backingStoreSupplier.getQueueSetDir());
+          backingStoreSupplier.getInflightTakes(),
+          backingStoreSupplier.getInflightPuts(),
+          backingStoreSupplier.getQueueSetDir());
       SetMultimap<Long, Long> deserializedMap = queue.deserializeInflightPuts();
       Assert.assertTrue(deserializedMap.get(
-              txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
+          txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
       Assert.assertTrue(deserializedMap.get(
-              txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
+          txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
       Assert.assertTrue(deserializedMap.get(
-              txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
+          txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
     } finally {
       inflight.close();
     }
@@ -440,9 +428,9 @@ public class TestFlumeEventQueue {
     RandomAccessFile inflight = null;
     try {
       queue = new FlumeEventQueue(backingStore,
-              backingStoreSupplier.getInflightTakes(),
-              backingStoreSupplier.getInflightPuts(),
-              backingStoreSupplier.getQueueSetDir());
+          backingStoreSupplier.getInflightTakes(),
+          backingStoreSupplier.getInflightPuts(),
+          backingStoreSupplier.getQueueSetDir());
       long txnID1 = new Random().nextInt(Integer.MAX_VALUE - 1);
       long txnID2 = txnID1 + 1;
       queue.addWithoutCommit(new FlumeEventPointer(1, 1), txnID1);
@@ -451,22 +439,60 @@ public class TestFlumeEventQueue {
       queue.checkpoint(true);
       TimeUnit.SECONDS.sleep(3L);
       inflight = new RandomAccessFile(
-              backingStoreSupplier.getInflightTakes(), "rw");
+          backingStoreSupplier.getInflightTakes(), "rw");
       inflight.seek(0);
       inflight.writeInt(new Random().nextInt());
       queue = new FlumeEventQueue(backingStore,
-              backingStoreSupplier.getInflightTakes(),
-              backingStoreSupplier.getInflightPuts(),
-              backingStoreSupplier.getQueueSetDir());
+          backingStoreSupplier.getInflightTakes(),
+          backingStoreSupplier.getInflightPuts(),
+          backingStoreSupplier.getQueueSetDir());
       SetMultimap<Long, Long> deserializedMap = queue.deserializeInflightTakes();
       Assert.assertTrue(deserializedMap.get(
-              txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
+          txnID1).contains(new FlumeEventPointer(1, 1).toLong()));
       Assert.assertTrue(deserializedMap.get(
-              txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
+          txnID1).contains(new FlumeEventPointer(2, 1).toLong()));
       Assert.assertTrue(deserializedMap.get(
-              txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
+          txnID2).contains(new FlumeEventPointer(2, 2).toLong()));
     } finally {
       inflight.close();
     }
+  }
+
+  private abstract static class EventQueueBackingStoreSupplier {
+    File baseDir;
+    File checkpoint;
+    File inflightTakes;
+    File inflightPuts;
+    File queueSetDir;
+
+    EventQueueBackingStoreSupplier() {
+      baseDir = Files.createTempDir();
+      checkpoint = new File(baseDir, "checkpoint");
+      inflightTakes = new File(baseDir, "inflightputs");
+      inflightPuts = new File(baseDir, "inflighttakes");
+      queueSetDir = new File(baseDir, "queueset");
+    }
+
+    File getCheckpoint() {
+      return checkpoint;
+    }
+
+    File getInflightPuts() {
+      return inflightPuts;
+    }
+
+    File getInflightTakes() {
+      return inflightTakes;
+    }
+
+    File getQueueSetDir() {
+      return queueSetDir;
+    }
+
+    void delete() {
+      FileUtils.deleteQuietly(baseDir);
+    }
+
+    abstract EventQueueBackingStore get() throws Exception;
   }
 }

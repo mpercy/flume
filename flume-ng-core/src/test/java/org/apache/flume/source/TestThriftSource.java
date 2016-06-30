@@ -35,14 +35,13 @@ import org.apache.flume.channel.MemoryChannel;
 import org.apache.flume.channel.ReplicatingChannelSelector;
 import org.apache.flume.conf.Configurables;
 import org.apache.flume.event.EventBuilder;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,11 +54,11 @@ import java.util.concurrent.Executors;
 
 public class TestThriftSource {
 
+  private final Random random = new Random();
+  private final Properties props = new Properties();
   private ThriftSource source;
   private MemoryChannel channel;
   private RpcClient client;
-  private final Random random = new Random();
-  private final Properties props = new Properties();
   private int port;
 
   @Before
@@ -67,10 +66,10 @@ public class TestThriftSource {
     port = random.nextInt(50000) + 1024;
     props.clear();
     props.setProperty("hosts", "h1");
-    props.setProperty("hosts.h1", "0.0.0.0:"+ String.valueOf(port));
+    props.setProperty("hosts.h1", "0.0.0.0:" + String.valueOf(port));
     props.setProperty(RpcClientConfigurationConstants.CONFIG_BATCH_SIZE, "10");
     props.setProperty(RpcClientConfigurationConstants.CONFIG_REQUEST_TIMEOUT,
-      "2000");
+        "2000");
     channel = new MemoryChannel();
     source = new ThriftSource();
   }
@@ -92,7 +91,7 @@ public class TestThriftSource {
 
   @Test
   public void testAppendSSL() throws Exception {
-    Properties sslprops = (Properties)props.clone();
+    Properties sslprops = (Properties) props.clone();
     sslprops.put("ssl", "true");
     sslprops.put("truststore", "src/test/resources/truststorefile.jks");
     sslprops.put("truststore-password", "password");
@@ -110,7 +109,7 @@ public class TestThriftSource {
     context.put("keymanager-type", KeyManagerFactory.getDefaultAlgorithm());
     Configurables.configure(source, context);
     source.start();
-    for(int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++) {
       client.append(EventBuilder.withBody(String.valueOf(i).getBytes()));
     }
     Transaction transaction = channel.getTransaction();
@@ -135,7 +134,7 @@ public class TestThriftSource {
     context.put(ThriftSource.CONFIG_PORT, String.valueOf(port));
     Configurables.configure(source, context);
     source.start();
-    for(int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++) {
       client.append(EventBuilder.withBody(String.valueOf(i).getBytes()));
     }
     Transaction transaction = channel.getTransaction();
@@ -188,8 +187,8 @@ public class TestThriftSource {
 
     int index = 0;
     //30 batches of 10
-    for(int i = 0; i < 30; i++) {
-      for(int j = 0; j < 10; j++) {
+    for (int i = 0; i < 30; i++) {
+      for (int j = 0; j < 10; j++) {
         Assert.assertEquals(i, events.get(index++).intValue());
       }
     }
@@ -233,8 +232,8 @@ public class TestThriftSource {
 
     int index = 0;
     //10 batches of 500
-    for(int i = 0; i < 5; i++) {
-      for(int j = 0; j < 500; j++) {
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 500; j++) {
         Assert.assertEquals(i, events.get(index++).intValue());
       }
     }
@@ -254,14 +253,14 @@ public class TestThriftSource {
     Configurables.configure(source, context);
     source.start();
     ExecutorCompletionService<Void> completionService = new
-      ExecutorCompletionService(submitter);
+        ExecutorCompletionService(submitter);
     for (int i = 0; i < 30; i++) {
       completionService.submit(new SubmitHelper(i), null);
     }
     //wait for all threads to be done
 
 
-    for(int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++) {
       completionService.take();
     }
 
@@ -282,8 +281,8 @@ public class TestThriftSource {
 
     int index = 0;
     //30 batches of 10
-    for(int i = 0; i < 30; i++) {
-      for(int j = 0; j < 10; j++) {
+    for (int i = 0; i < 30; i++) {
+      for (int j = 0; j < 10; j++) {
         Assert.assertEquals(i, events.get(index++).intValue());
       }
     }
@@ -292,9 +291,11 @@ public class TestThriftSource {
   private class SubmitHelper implements Runnable {
 
     private final int i;
+
     public SubmitHelper(int i) {
       this.i = i;
     }
+
     @Override
     public void run() {
       List<Event> events = Lists.newArrayList();

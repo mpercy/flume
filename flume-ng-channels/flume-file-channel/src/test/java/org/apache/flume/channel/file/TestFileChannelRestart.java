@@ -52,11 +52,24 @@ import static org.apache.flume.channel.file.TestUtils.putEvents;
 import static org.apache.flume.channel.file.TestUtils.putWithoutCommit;
 import static org.apache.flume.channel.file.TestUtils.takeEvents;
 import static org.apache.flume.channel.file.TestUtils.takeWithoutCommit;
-import static org.fest.reflect.core.Reflection.*;
+import static org.fest.reflect.core.Reflection.field;
 
 public class TestFileChannelRestart extends TestFileChannelBase {
-  protected static final Logger LOG = LoggerFactory
-      .getLogger(TestFileChannelRestart.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(TestFileChannelRestart.class);
+
+  private static void slowdownBackup(FileChannel channel) {
+    Log log = field("log").ofType(Log.class).in(channel).get();
+
+    FlumeEventQueue queue = field("queue")
+                                .ofType(FlumeEventQueue.class)
+                                .in(log).get();
+
+    EventQueueBackingStore backingStore = field("backingStore")
+                                              .ofType(EventQueueBackingStore.class)
+                                              .in(queue).get();
+
+    field("slowdownBackup").ofType(Boolean.class).in(backingStore).set(true);
+  }
 
   @Before
   public void setup() throws Exception {
@@ -73,13 +86,14 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     // FLUME-2482, making sure scheduled checkpoint never gets called
     overrides.put(FileChannelConfiguration.CHECKPOINT_INTERVAL, "6000000");
     return TestUtils.createFileChannel(checkpointDir.getAbsolutePath(),
-            dataDir, backupDir.getAbsolutePath(), overrides);
+                                       dataDir, backupDir.getAbsolutePath(), overrides);
   }
 
   @Test
   public void testRestartLogReplayV1() throws Exception {
     doTestRestart(true, false, false, false);
   }
+
   @Test
   public void testRestartLogReplayV2() throws Exception {
     doTestRestart(false, false, false, false);
@@ -116,14 +130,13 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   public void doTestRestart(boolean useLogReplayV1,
-          boolean forceCheckpoint, boolean deleteCheckpoint,
-          boolean useFastReplay) throws Exception {
+                            boolean forceCheckpoint, boolean deleteCheckpoint,
+                            boolean useFastReplay) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_LOG_REPLAY_V1,
-            String.valueOf(useLogReplayV1));
-    overrides.put(
-            FileChannelConfiguration.USE_FAST_REPLAY,
-            String.valueOf(useFastReplay));
+                  String.valueOf(useLogReplayV1));
+    overrides.put(FileChannelConfiguration.USE_FAST_REPLAY,
+                  String.valueOf(useFastReplay));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -132,7 +145,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
       forceCheckpoint(channel);
     }
     channel.stop();
-    if(deleteCheckpoint) {
+    if (deleteCheckpoint) {
       File checkpoint = new File(checkpointDir, "checkpoint");
       Assert.assertTrue(checkpoint.delete());
       File checkpointMetaData = Serialization.getMetaDataFile(checkpoint);
@@ -146,19 +159,17 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testRestartWhenMetaDataExistsButCheckpointDoesNot() throws
-      Exception {
+  public void testRestartWhenMetaDataExistsButCheckpointDoesNot() throws Exception {
     doTestRestartWhenMetaDataExistsButCheckpointDoesNot(false);
   }
 
   @Test
-  public void testRestartWhenMetaDataExistsButCheckpointDoesNotWithBackup()
-      throws Exception {
+  public void testRestartWhenMetaDataExistsButCheckpointDoesNotWithBackup() throws Exception {
     doTestRestartWhenMetaDataExistsButCheckpointDoesNot(true);
   }
 
-  private void doTestRestartWhenMetaDataExistsButCheckpointDoesNot(
-      boolean backup) throws Exception {
+  private void doTestRestartWhenMetaDataExistsButCheckpointDoesNot(boolean backup)
+      throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -167,7 +178,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
@@ -186,19 +197,16 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testRestartWhenCheckpointExistsButMetaDoesNot() throws Exception{
+  public void testRestartWhenCheckpointExistsButMetaDoesNot() throws Exception {
     doTestRestartWhenCheckpointExistsButMetaDoesNot(false);
   }
 
   @Test
-  public void testRestartWhenCheckpointExistsButMetaDoesNotWithBackup() throws
-      Exception{
+  public void testRestartWhenCheckpointExistsButMetaDoesNotWithBackup() throws Exception {
     doTestRestartWhenCheckpointExistsButMetaDoesNot(true);
   }
 
-
-  private void doTestRestartWhenCheckpointExistsButMetaDoesNot(boolean backup)
-      throws Exception {
+  private void doTestRestartWhenCheckpointExistsButMetaDoesNot(boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -207,7 +215,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
@@ -235,8 +243,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     doTestRestartWhenNoCheckpointExists(true);
   }
 
-  private void doTestRestartWhenNoCheckpointExists(boolean backup) throws
-      Exception {
+  private void doTestRestartWhenNoCheckpointExists(boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -245,7 +252,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
@@ -273,7 +280,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     doTestBadCheckpointVersion(true);
   }
 
-  private void doTestBadCheckpointVersion(boolean backup) throws Exception{
+  private void doTestBadCheckpointVersion(boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -282,14 +289,13 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(checkpoint, "rw");
-    writer.seek(EventQueueBackingStoreFile.INDEX_VERSION *
-            Serialization.SIZE_OF_LONG);
+    writer.seek(EventQueueBackingStoreFile.INDEX_VERSION * Serialization.SIZE_OF_LONG);
     writer.writeLong(2L);
     writer.getFD().sync();
     writer.close();
@@ -311,8 +317,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     doTestBadCheckpointMetaVersion(true);
   }
 
-  private void doTestBadCheckpointMetaVersion(boolean backup) throws
-      Exception {
+  private void doTestBadCheckpointMetaVersion(boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -321,7 +326,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
@@ -331,7 +336,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Assert.assertNotNull(meta);
     is.close();
     FileOutputStream os = new FileOutputStream(
-            Serialization.getMetaDataFile(checkpoint));
+                                                  Serialization.getMetaDataFile(checkpoint));
     meta.toBuilder().setVersion(2).build().writeDelimitedTo(os);
     os.flush();
     channel = createFileChannel(overrides);
@@ -348,13 +353,11 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testDifferingOrderIDCheckpointAndMetaVersionWithBackup() throws
-      Exception {
+  public void testDifferingOrderIDCheckpointAndMetaVersionWithBackup() throws Exception {
     doTestDifferingOrderIDCheckpointAndMetaVersion(true);
   }
 
-  private void doTestDifferingOrderIDCheckpointAndMetaVersion(boolean backup)
-      throws Exception {
+  private void doTestDifferingOrderIDCheckpointAndMetaVersion(boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
@@ -363,7 +366,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
@@ -373,7 +376,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Assert.assertNotNull(meta);
     is.close();
     FileOutputStream os = new FileOutputStream(
-            Serialization.getMetaDataFile(checkpoint));
+                                                  Serialization.getMetaDataFile(checkpoint));
     meta.toBuilder().setWriteOrderID(12).build().writeDelimitedTo(os);
     os.flush();
     channel = createFileChannel(overrides);
@@ -385,12 +388,12 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testIncompleteCheckpoint() throws Exception{
+  public void testIncompleteCheckpoint() throws Exception {
     doTestIncompleteCheckpoint(false);
   }
 
   @Test
-  public void testIncompleteCheckpointWithCheckpoint() throws Exception{
+  public void testIncompleteCheckpointWithCheckpoint() throws Exception {
     doTestIncompleteCheckpoint(true);
   }
 
@@ -403,14 +406,14 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(checkpoint, "rw");
     writer.seek(EventQueueBackingStoreFile.INDEX_CHECKPOINT_MARKER
-      * Serialization.SIZE_OF_LONG);
+                    * Serialization.SIZE_OF_LONG);
     writer.writeLong(EventQueueBackingStoreFile.CHECKPOINT_INCOMPLETE);
     writer.getFD().sync();
     writer.close();
@@ -443,30 +446,30 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testFastReplayWithCheckpoint() throws Exception{
+  public void testFastReplayWithCheckpoint() throws Exception {
     testFastReplay(false, true);
   }
 
   @Test
-  public void testFastReplayWithBadCheckpoint() throws Exception{
+  public void testFastReplayWithBadCheckpoint() throws Exception {
     testFastReplay(true, true);
   }
 
   @Test
-  public void testNoFastReplayWithCheckpoint() throws Exception{
+  public void testNoFastReplayWithCheckpoint() throws Exception {
     testFastReplay(false, false);
   }
 
   @Test
-  public void testNoFastReplayWithBadCheckpoint() throws Exception{
+  public void testNoFastReplayWithBadCheckpoint() throws Exception {
     testFastReplay(true, false);
   }
 
   private void testFastReplay(boolean shouldCorruptCheckpoint,
-                             boolean useFastReplay) throws Exception{
+                              boolean useFastReplay) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_FAST_REPLAY,
-      String.valueOf(useFastReplay));
+                  String.valueOf(useFastReplay));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -477,7 +480,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     if (shouldCorruptCheckpoint) {
       File checkpoint = new File(checkpointDir, "checkpoint");
       RandomAccessFile writer = new RandomAccessFile(
-        Serialization.getMetaDataFile(checkpoint), "rw");
+                                                        Serialization.getMetaDataFile(checkpoint),
+                                                        "rw");
       writer.seek(10);
       writer.writeLong(new Random().nextLong());
       writer.getFD().sync();
@@ -495,14 +499,13 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     compareInputAndOut(in, out);
   }
 
-  private void doTestCorruptInflights(String name,
-    boolean backup) throws Exception {
+  private void doTestCorruptInflights(String name, boolean backup) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, String.valueOf(backup));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
-    final Set<String> in1 = putEvents(channel, "restart-",10, 100);
+    final Set<String> in1 = putEvents(channel, "restart-", 10, 100);
     Assert.assertEquals(100, in1.size());
     Executors.newSingleThreadScheduledExecutor().submit(new Runnable() {
       @Override
@@ -516,7 +519,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in2 = putWithoutCommit(channel, tx, "restart", 100);
     Assert.assertEquals(100, in2.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     tx.commit();
@@ -554,13 +557,14 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(
-            Serialization.getMetaDataFile(checkpoint), "rw");
+                                                      Serialization.getMetaDataFile(checkpoint),
+                                                      "rw");
     writer.setLength(0);
     writer.getFD().sync();
     writer.close();
@@ -591,13 +595,14 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> in = putEvents(channel, "restart", 10, 100);
     Assert.assertEquals(100, in.size());
     forceCheckpoint(channel);
-    if(backup) {
+    if (backup) {
       Thread.sleep(2000);
     }
     channel.stop();
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(
-            Serialization.getMetaDataFile(checkpoint), "rw");
+                                                      Serialization.getMetaDataFile(checkpoint),
+                                                      "rw");
     writer.seek(10);
     writer.writeLong(new Random().nextLong());
     writer.getFD().sync();
@@ -618,11 +623,10 @@ public class TestFileChannelRestart extends TestFileChannelBase {
       Assert.assertFalse(backupRestored);
     }
   }
- 
+
   //This test will fail without FLUME-1893
   @Test
-  public void testCorruptCheckpointVersionMostSignificant4Bytes()
-    throws Exception {
+  public void testCorruptCheckpointVersionMostSignificant4Bytes() throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     channel = createFileChannel(overrides);
     channel.start();
@@ -634,8 +638,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(checkpoint, "rw");
     writer.seek(EventQueueBackingStoreFile.INDEX_VERSION *
-      Serialization.SIZE_OF_LONG);
-    writer.write(new byte[]{(byte)1, (byte)5});
+                    Serialization.SIZE_OF_LONG);
+    writer.write(new byte[] { (byte) 1, (byte) 5 });
     writer.getFD().sync();
     writer.close();
     channel = createFileChannel(overrides);
@@ -648,8 +652,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
 
   //This test will fail without FLUME-1893
   @Test
-  public void testCorruptCheckpointCompleteMarkerMostSignificant4Bytes()
-    throws Exception {
+  public void testCorruptCheckpointCompleteMarkerMostSignificant4Bytes() throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     channel = createFileChannel(overrides);
     channel.start();
@@ -661,8 +664,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     File checkpoint = new File(checkpointDir, "checkpoint");
     RandomAccessFile writer = new RandomAccessFile(checkpoint, "rw");
     writer.seek(EventQueueBackingStoreFile.INDEX_CHECKPOINT_MARKER *
-      Serialization.SIZE_OF_LONG);
-    writer.write(new byte[]{(byte) 1, (byte) 5});
+                    Serialization.SIZE_OF_LONG);
+    writer.write(new byte[] { (byte) 1, (byte) 5 });
     writer.getFD().sync();
     writer.close();
     channel = createFileChannel(overrides);
@@ -674,8 +677,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   }
 
   @Test
-  public void testWithExtraLogs()
-      throws Exception {
+  public void testWithExtraLogs() throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.CAPACITY, "10");
     overrides.put(FileChannelConfiguration.TRANSACTION_CAPACITY, "10");
@@ -702,27 +704,25 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   // Make sure the entire channel was not replayed, only the events from the
   // backup.
   @Test
-  public void testBackupUsedEnsureNoFullReplayWithoutCompression() throws
-    Exception {
+  public void testBackupUsedEnsureNoFullReplayWithoutCompression() throws Exception {
     testBackupUsedEnsureNoFullReplay(false);
   }
+
   @Test
-  public void testBackupUsedEnsureNoFullReplayWithCompression() throws
-    Exception {
+  public void testBackupUsedEnsureNoFullReplayWithCompression() throws Exception {
     testBackupUsedEnsureNoFullReplay(true);
   }
 
-  private void testBackupUsedEnsureNoFullReplay(boolean compressedBackup)
-    throws Exception {
+  private void testBackupUsedEnsureNoFullReplay(boolean compressedBackup) throws Exception {
     File dataDir = Files.createTempDir();
     File tempBackup = Files.createTempDir();
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.DATA_DIRS,
-      dataDir.getAbsolutePath());
+                  dataDir.getAbsolutePath());
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS,
-      "true");
+                  "true");
     overrides.put(FileChannelConfiguration.COMPRESS_BACKUP_CHECKPOINT,
-      String.valueOf(compressedBackup));
+                  String.valueOf(compressedBackup));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -734,8 +734,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     in = putEvents(channel, "restart", 10, 100);
     takeEvents(channel, 10, 100);
     Assert.assertEquals(100, in.size());
-    for(File file : backupDir.listFiles()) {
-      if(file.getName().equals(Log.FILE_LOCK)) {
+    for (File file : backupDir.listFiles()) {
+      if (file.getName().equals(Log.FILE_LOCK)) {
         continue;
       }
       Files.copy(file, new File(tempBackup, file.getName()));
@@ -749,8 +749,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     // tests), so throw away the backup and force the use of an older backup by
     // bringing in the copy of the last backup before the checkpoint.
     Serialization.deleteAllFiles(backupDir, Log.EXCLUDES);
-    for(File file : tempBackup.listFiles()) {
-      if(file.getName().equals(Log.FILE_LOCK)) {
+    for (File file : tempBackup.listFiles()) {
+      if (file.getName().equals(Log.FILE_LOCK)) {
         continue;
       }
       Files.copy(file, new File(backupDir, file.getName()));
@@ -782,7 +782,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Assert.assertTrue(channel.isOpen());
     putEvents(channel, prefix, 10, 100);
     Set<String> origFiles = Sets.newHashSet();
-    for(File dir : dataDirs) {
+    for (File dir : dataDirs) {
       origFiles.addAll(Lists.newArrayList(dir.list()));
     }
     forceCheckpoint(channel);
@@ -792,7 +792,7 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     Set<String> newFiles = Sets.newHashSet();
     int olderThanCheckpoint = 0;
     int totalMetaFiles = 0;
-    for(File dir : dataDirs) {
+    for (File dir : dataDirs) {
       File[] metadataFiles = dir.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
@@ -803,8 +803,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
         }
       });
       totalMetaFiles = metadataFiles.length;
-      for(File metadataFile : metadataFiles) {
-        if(metadataFile.lastModified() < beforeSecondCheckpoint) {
+      for (File metadataFile : metadataFiles) {
+        if (metadataFile.lastModified() < beforeSecondCheckpoint) {
           olderThanCheckpoint++;
         }
       }
@@ -824,13 +824,13 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     takeEvents(channel, 10, 50);
     forceCheckpoint(channel);
     newFiles = Sets.newHashSet();
-    for(File dir : dataDirs) {
+    for (File dir : dataDirs) {
       newFiles.addAll(Lists.newArrayList(dir.list()));
     }
     Assert.assertTrue(!newFiles.containsAll(origFiles));
   }
 
-  @Test (expected = IOException.class)
+  @Test(expected = IOException.class)
   public void testSlowBackup() throws Throwable {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, "true");
@@ -857,11 +857,9 @@ public class TestFileChannelRestart extends TestFileChannelBase {
   @Test
   public void testCompressBackup() throws Throwable {
     Map<String, String> overrides = Maps.newHashMap();
-    overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS,
-      "true");
+    overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS, "true");
     overrides.put(FileChannelConfiguration.MAX_FILE_SIZE, "1000");
-    overrides.put(FileChannelConfiguration.COMPRESS_BACKUP_CHECKPOINT,
-      "true");
+    overrides.put(FileChannelConfiguration.COMPRESS_BACKUP_CHECKPOINT, "true");
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -873,36 +871,31 @@ public class TestFileChannelRestart extends TestFileChannelBase {
 
     Assert.assertTrue(compressedBackupCheckpoint.exists());
 
-    Serialization.decompressFile(compressedBackupCheckpoint,
-      uncompressedBackupCheckpoint);
+    Serialization.decompressFile(compressedBackupCheckpoint, uncompressedBackupCheckpoint);
 
     File checkpoint = new File(checkpointDir, "checkpoint");
-    Assert.assertTrue(FileUtils.contentEquals(checkpoint,
-      uncompressedBackupCheckpoint));
+    Assert.assertTrue(FileUtils.contentEquals(checkpoint, uncompressedBackupCheckpoint));
 
     channel.stop();
   }
 
   @Test
-  public void testToggleCheckpointCompressionFromTrueToFalse()
-    throws Exception {
+  public void testToggleCheckpointCompressionFromTrueToFalse() throws Exception {
     restartToggleCompression(true);
   }
 
   @Test
-  public void testToggleCheckpointCompressionFromFalseToTrue()
-    throws Exception {
+  public void testToggleCheckpointCompressionFromFalseToTrue() throws Exception {
     restartToggleCompression(false);
   }
 
-  public void restartToggleCompression(boolean originalCheckpointCompressed)
-    throws Exception {
+  public void restartToggleCompression(boolean originalCheckpointCompressed) throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put(FileChannelConfiguration.USE_DUAL_CHECKPOINTS,
-      "true");
+                  "true");
     overrides.put(FileChannelConfiguration.MAX_FILE_SIZE, "1000");
     overrides.put(FileChannelConfiguration.COMPRESS_BACKUP_CHECKPOINT,
-      String.valueOf(originalCheckpointCompressed));
+                  String.valueOf(originalCheckpointCompressed));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -910,17 +903,16 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     forceCheckpoint(channel);
     Thread.sleep(2000);
     Assert.assertEquals(compressedBackupCheckpoint.exists(),
-      originalCheckpointCompressed);
+                        originalCheckpointCompressed);
     Assert.assertEquals(uncompressedBackupCheckpoint.exists(),
-      !originalCheckpointCompressed);
+                        !originalCheckpointCompressed);
     channel.stop();
     File checkpoint = new File(checkpointDir, "checkpoint");
     Assert.assertTrue(checkpoint.delete());
-    File checkpointMetaData = Serialization.getMetaDataFile(
-      checkpoint);
+    File checkpointMetaData = Serialization.getMetaDataFile(checkpoint);
     Assert.assertTrue(checkpointMetaData.delete());
     overrides.put(FileChannelConfiguration.COMPRESS_BACKUP_CHECKPOINT,
-      String.valueOf(!originalCheckpointCompressed));
+                  String.valueOf(!originalCheckpointCompressed));
     channel = createFileChannel(overrides);
     channel.start();
     Assert.assertTrue(channel.isOpen());
@@ -929,22 +921,8 @@ public class TestFileChannelRestart extends TestFileChannelBase {
     forceCheckpoint(channel);
     Thread.sleep(2000);
     Assert.assertEquals(compressedBackupCheckpoint.exists(),
-      !originalCheckpointCompressed);
+                        !originalCheckpointCompressed);
     Assert.assertEquals(uncompressedBackupCheckpoint.exists(),
-      originalCheckpointCompressed);
-  }
-
-  private static void slowdownBackup(FileChannel channel) {
-    Log log = field("log").ofType(Log.class).in(channel).get();
-
-    FlumeEventQueue queue = field("queue")
-      .ofType(FlumeEventQueue.class)
-      .in(log).get();
-
-    EventQueueBackingStore backingStore = field("backingStore")
-      .ofType(EventQueueBackingStore.class)
-      .in(queue).get();
-
-    field("slowdownBackup").ofType(Boolean.class).in(backingStore).set(true);
+                        originalCheckpointCompressed);
   }
 }
